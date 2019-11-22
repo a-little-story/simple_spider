@@ -16,33 +16,80 @@ from config import *
 def extract_tag_content(query_words, pre_url=pre_url, next_url=next_url, headers=HEADERS,
                 extract_tag=extract_tag, extract_tag_len=extract_tag_len):
     url = pre_url + query_words + next_url
-    a = requests.get(url, headers=headers)
+    while True:  # 一直循环，知道访问站点成功
+        try:
+            a = requests.get(url, headers=headers)
+            break
+        except requests.exceptions.ConnectionError:
+            time.sleep(1)
+        except requests.exceptions.ChunkedEncodingError:
+            time.sleep(1)
+        except:
+            time.sleep(1)
     context = a.content.decode('utf8')
-    with open(query_words, 'w', encoding='utf-8') as f:
-        f.write(context)
     context = context.split()
-    print(len(context))
     for line in context:
         if line[:extract_tag_len] == extract_tag:
-            return line[extract_tag_len:]
+            return line[extract_tag_len:-1]
 
 def spider_single(file_path, output_path):
     with open(file_path, 'r', encoding='utf8') as f, \
             open(output_path, 'w', encoding='utf8') as f_out:
-        for line in f:
-            query = extract_query(line)
-            result = extract_tag_content(query)
-            t = {}
-            t[query] = result
-            t = json.dumps(t, ensure_ascii=False) + '\n'
-            f_out.write(t)
+        try:
+            for line in f:
+                query = extract_query(line)
+                result = extract_tag_content(query)
+                for i in range(5):
+                    if result != '[]':
+                        break
+                    query = extract_query(line, i)
+                    if not query:
+                        break
+                    result = extract_tag_content(query)
+                t = {}
+                if not query:
+                    t[extract_query(line)] = '[]'
+                else:
+                    t[query] = result
+                t = json.dumps(t, ensure_ascii=False) + '\n'
+                f_out.write(t)
+        except:
+            pass
 
-
-
-def extract_query(line):
+def extract_query(line, func_nums = -1):
+    if func_nums > len(query_file.split())-1:
+        return None
     line = json.loads(line)
-    return line['query'][:MAX_LENGTH]
-
+    query = line['query']
+    if func_nums<0:
+        return query
+    elif func_nums == 0:
+        if len(query) <= MAX_LENGTH:
+            return query
+        query = query.split()
+        r = []
+        r.append(query[0])
+        cur_len = len(query.pop(0))
+        for q in query:
+            if cur_len+1+len(q)>MAX_LENGTH:
+                break
+            cur_len += 1
+            cur_len += len(q)
+            r.append(q)
+        return ' '.join(r)
+    else:
+        query = query.split()
+        r = []
+        r.append(query[0])
+        cur_len = len(query.pop(0))
+        query.pop(func_nums)
+        for q in query:
+            if cur_len+1+len(q)>MAX_LENGTH:
+                break
+            cur_len += 1
+            cur_len += len(q)
+            r.append(q)
+        return ' '.join(r)
 
 def split_file(file_path=query_file, nums=pool_size):
     result  = os.popen(f'wc -l {file_path}').readlines()
@@ -54,10 +101,15 @@ def split_file(file_path=query_file, nums=pool_size):
     os.popen(command).readlines()
 
 
-def multi_p_spider(func=extract_tag_content, pool_size=pool_size):
+def multi_p_spider(func=spider_single, pool_size=pool_size, file_pre=query_file):
     my_pool = Pool(processes=pool_size)
     for i in range(pool_size):
-        my_pool.apply_async()
+        in_file_name = file_pre+'0'+str(i)
+        out_file_name = file_pre+str(i)+'output'
+        my_pool.apply_async(func, (in_file_name, out_file_name))
+    my_pool.close()
+    my_pool.join()
+
 
 if __name__ == "__main__":
     spider_single('./data/json_format1', './data/json_format1out')
