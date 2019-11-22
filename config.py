@@ -5,5 +5,5 @@ next_url = "&si=movie.douban.com&ct=2097152"
 extract_tag = "bds.comm.iaurl="
 extract_tag_len = len(extract_tag)
 pool_size = 10
-query_file = 'data/json_format'
+query_file = 'data/data/json_format'
 MAX_LENGTH = 38

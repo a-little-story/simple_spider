@@ -19,7 +19,8 @@ def extract_tag_content(query_words, pre_url=pre_url, next_url=next_url, headers
     while True:  # 一直循环，知道访问站点成功
         try:
             a = requests.get(url, headers=headers)
-            break
+            if a.status_code == 200:
+                break
         except requests.exceptions.ConnectionError:
             time.sleep(1)
         except requests.exceptions.ChunkedEncodingError:
@@ -50,39 +51,30 @@ def spider_single(file_path, output_path):
                 if not query:
                     t[extract_query(line)] = '[]'
                 else:
-                    t[query] = result
+                    t[query] = result if result else '[]'
                 t = json.dumps(t, ensure_ascii=False) + '\n'
                 f_out.write(t)
+
         except:
             pass
 
 def extract_query(line, func_nums = -1):
-    if func_nums > len(query_file.split())-1:
-        return None
+
     line = json.loads(line)
     query = line['query']
     if func_nums<0:
         return query
-    elif func_nums == 0:
-        if len(query) <= MAX_LENGTH:
-            return query
-        query = query.split()
-        r = []
-        r.append(query[0])
-        cur_len = len(query.pop(0))
-        for q in query:
-            if cur_len+1+len(q)>MAX_LENGTH:
-                break
-            cur_len += 1
-            cur_len += len(q)
-            r.append(q)
-        return ' '.join(r)
     else:
+        # if func_nums > len(query_file.split())-1:
+        #     return None
+        # if func_nums == 0:
+        #     return query[:MAX_LENGTH]
         query = query.split()
         r = []
         r.append(query[0])
         cur_len = len(query.pop(0))
-        query.pop(func_nums)
+        if func_nums < len(query):
+            query.pop(func_nums)
         for q in query:
             if cur_len+1+len(q)>MAX_LENGTH:
                 break
@@ -90,6 +82,19 @@ def extract_query(line, func_nums = -1):
             cur_len += len(q)
             r.append(q)
         return ' '.join(r)
+    # else:
+    #     query = query.split()
+    #     r = []
+    #     r.append(query[0])
+    #     cur_len = len(query.pop(0))
+    #     query.pop(func_nums)
+    #     for q in query:
+    #         if cur_len+1+len(q)>MAX_LENGTH:
+    #             break
+    #         cur_len += 1
+    #         cur_len += len(q)
+    #         r.append(q)
+    #     return ' '.join(r)
 
 def split_file(file_path=query_file, nums=pool_size):
     result  = os.popen(f'wc -l {file_path}').readlines()
@@ -112,4 +117,6 @@ def multi_p_spider(func=spider_single, pool_size=pool_size, file_pre=query_file)
 
 
 if __name__ == "__main__":
-    spider_single('./data/json_format1', './data/json_format1out')
+    # split_file()
+    # spider_single(query_file+'1', query_file+'1out')
+    multi_p_spider()
