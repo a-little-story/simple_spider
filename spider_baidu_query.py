@@ -11,27 +11,30 @@ import multiprocessing as mp
 from config import *
 
 
-
-
 def extract_tag_content(query_words, pre_url=pre_url, next_url=next_url, headers=HEADERS,
-                extract_tag=extract_tag, extract_tag_len=extract_tag_len):
+                extract_tag=extract_tag, extract_tag_len=extract_tag_len, max_try=30):
     url = pre_url + query_words + next_url
-    while True:  # 一直循环，知道访问站点成功
+    i = 0
+    while i < max_try:  # 一直循环，知道访问站点成功
+        i += 1
         try:
             a = requests.get(url, headers=headers)
             if a.status_code == 200:
                 break
         except requests.exceptions.ConnectionError:
-            time.sleep(1)
+            time.sleep(0.4)
         except requests.exceptions.ChunkedEncodingError:
-            time.sleep(1)
+            time.sleep(0.4)
         except:
-            time.sleep(1)
+            time.sleep(0.4)
+    if i ==max_try:
+        return '[]'
     context = a.content.decode('utf8')
     context = context.split()
     for line in context:
         if line[:extract_tag_len] == extract_tag:
             return line[extract_tag_len:-1]
+
 
 def spider_single(file_path, output_path):
     with open(file_path, 'r', encoding='utf8') as f, \
@@ -54,9 +57,9 @@ def spider_single(file_path, output_path):
                     t[query] = result if result else '[]'
                 t = json.dumps(t, ensure_ascii=False) + '\n'
                 f_out.write(t)
-
         except:
             pass
+
 
 def extract_query(line, func_nums = -1):
 
@@ -96,6 +99,7 @@ def extract_query(line, func_nums = -1):
     #         r.append(q)
     #     return ' '.join(r)
 
+
 def split_file(file_path=query_file, nums=pool_size):
     result  = os.popen(f'wc -l {file_path}').readlines()
     print(result)
@@ -110,7 +114,7 @@ def multi_p_spider(func=spider_single, pool_size=pool_size, file_pre=query_file)
     my_pool = Pool(processes=pool_size)
     for i in range(pool_size):
         in_file_name = file_pre+'0'+str(i)
-        out_file_name = file_pre+str(i)+'output'
+        out_file_name = file_pre+str(i)+'output2'
         my_pool.apply_async(func, (in_file_name, out_file_name))
     my_pool.close()
     my_pool.join()
