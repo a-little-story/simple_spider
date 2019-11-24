@@ -3,6 +3,7 @@ import requests
 import time
 import os
 import json
+import logging
 
 from pprint import pprint
 from multiprocessing import Pool
@@ -10,9 +11,12 @@ from multiprocessing import Pool
 import multiprocessing as mp
 from config import *
 
+logging.basicConfig(level = logging.INFO,format = '%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logger = logging.getLogger("spider")
+
 
 def extract_tag_content(query_words, pre_url=pre_url, next_url=next_url, headers=HEADERS,
-                extract_tag=extract_tag, extract_tag_len=extract_tag_len, max_try=30):
+                extract_tag=extract_tag, extract_tag_len=extract_tag_len, max_try=10, sleep_time=0.2):
     url = pre_url + query_words + next_url
     i = 0
     while i < max_try:  # 一直循环，知道访问站点成功
@@ -20,20 +24,27 @@ def extract_tag_content(query_words, pre_url=pre_url, next_url=next_url, headers
         try:
             a = requests.get(url, headers=headers)
             if a.status_code == 200:
+
                 break
         except requests.exceptions.ConnectionError:
-            time.sleep(0.4)
+            time.sleep(sleep_time)
         except requests.exceptions.ChunkedEncodingError:
-            time.sleep(0.4)
+            time.sleep(sleep_time)
         except:
-            time.sleep(0.4)
-    if i ==max_try:
+            time.sleep(sleep_time)
+    if i == max_try:
         return '[]'
-    context = a.content.decode('utf8')
+    try:
+        context = a.content.decode('utf8')
+    except UnicodeDecodeError:
+        a.encoding = 'utf8'
+        context = a.content
+
     context = context.split()
     for line in context:
         if line[:extract_tag_len] == extract_tag:
             return line[extract_tag_len:-1]
+    return '[]'
 
 
 def spider_single(file_path, output_path):
@@ -57,8 +68,30 @@ def spider_single(file_path, output_path):
                     t[query] = result if result else '[]'
                 t = json.dumps(t, ensure_ascii=False) + '\n'
                 f_out.write(t)
-        except:
-            pass
+        except UnicodeDecodeError:
+            logger.warning(f"UnicodeDecodeError: {line}{i}")
+        # ii = 0
+        # for line in f:
+        #     ii += 1
+        #     if ii < 760:
+        #         continue
+        #     print(ii)
+        #     query = extract_query(line)
+        #     result = extract_tag_content(query)
+        #     for i in range(5):
+        #         if result != '[]':
+        #             break
+        #         query = extract_query(line, i)
+        #         if not query:
+        #             break
+        #         result = extract_tag_content(query)
+        #     t = {}
+        #     if not query:
+        #         t[extract_query(line)] = '[]'
+        #     else:
+        #         t[query] = result if result else '[]'
+        #     t = json.dumps(t, ensure_ascii=False) + '\n'
+        #     f_out.write(t)
 
 
 def extract_query(line, func_nums = -1):
@@ -123,4 +156,6 @@ def multi_p_spider(func=spider_single, pool_size=pool_size, file_pre=query_file)
 if __name__ == "__main__":
     # split_file()
     # spider_single(query_file+'1', query_file+'1out')
+    logger.info("start working")
+    # spider_single('./data/json_format00', './data/json_format0output2')
     multi_p_spider()
