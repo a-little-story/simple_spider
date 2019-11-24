@@ -7,3 +7,4 @@ extract_tag_len = len(extract_tag)
 pool_size = 10
 query_file = 'data/json_format'
 MAX_LENGTH = 38
+rssult_file = './data/json_result'

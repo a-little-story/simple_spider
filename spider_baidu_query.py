@@ -153,9 +153,26 @@ def multi_p_spider(func=spider_single, pool_size=pool_size, file_pre=query_file)
     my_pool.join()
 
 
+def merge_result(file_pre=query_file, nums=pool_size, output_file=rssult_file):
+    with open(output_file, 'w', encoding='utf-8') as f:
+        for i in range(nums):
+            file_name = file_pre + str(i) + 'output2'
+            assert os.path.exists(file_name), f"the file {file_name} does not exist"
+            line_nums = 0
+            with open(file_name, 'r', encoding='utf-8') as f_:
+                for line in f_:
+                    line_nums += 1
+                    f.write(line)
+            logger.info(f'{file_name} has {line_nums} lines')
+
+
+
+
+
 if __name__ == "__main__":
     # split_file()
     # spider_single(query_file+'1', query_file+'1out')
     logger.info("start working")
     # spider_single('./data/json_format00', './data/json_format0output2')
-    multi_p_spider()
+    # multi_p_spider()
+    merge_result()
